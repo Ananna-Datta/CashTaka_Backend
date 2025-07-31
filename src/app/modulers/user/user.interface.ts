@@ -26,6 +26,7 @@ export interface IUser{
     role:Role,
     IsActive?:IsActive,
     IsVarified?:boolean,
+    auths: IAuthProvider[],
     wallet?: Types.ObjectId[],
     transaction?: Types.ObjectId[],
 }
