@@ -13,6 +13,7 @@ interface EnvConfig {
   EXPRESS_SESSION_SECRET: string;
   JWT_REFRESH_EXPIRES: string;
   JWT_REFRESH_SECRET: string;
+  FRONTEND_URL:string
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -25,7 +26,8 @@ const loadEnvVariables = (): EnvConfig => {
     "JWT_ACCESS_EXPIRES",
     "EXPRESS_SESSION_SECRET",
     "JWT_REFRESH_SECRET",
-    "JWT_REFRESH_EXPIRES"
+    "JWT_REFRESH_EXPIRES",
+    "FRONTEND_URL"
   ];
   requiredEnvVariables.forEach((key) => {
     if (!process.env[key]) {
@@ -41,7 +43,8 @@ const loadEnvVariables = (): EnvConfig => {
     JWT_ACCESS_EXPIRES: process.env.JWT_ACCESS_EXPIRES!,
     EXPRESS_SESSION_SECRET: process.env.EXPRESS_SESSION_SECRET!,
     JWT_REFRESH_EXPIRES:process.env.JWT_REFRESH_EXPIRES!,
-    JWT_REFRESH_SECRET:process.env.JWT_REFRESH_SECRET!
+    JWT_REFRESH_SECRET:process.env.JWT_REFRESH_SECRET!,
+    FRONTEND_URL:process.env.FRONTEND_URL!
   };
 };
 
