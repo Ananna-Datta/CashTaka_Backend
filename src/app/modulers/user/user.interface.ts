@@ -1,10 +1,12 @@
 import { Types } from "mongoose";
+import { IWallet } from "../wallet/wallet.interface";
 
 export enum Role{
     ADMIN = "ADMIN",
     USER = "USER",
     AGENT = "AGENT"
 }
+
 
 export enum IsActive{
     ACTIVE = "ACTIVE",
@@ -17,6 +19,8 @@ export interface IAuthProvider {
     providerId: string;
 }
 
+export type UserStatus = "approved" | "suspended" | "pending";
+
 export interface IUser{
     _id?: Types.ObjectId
     name:string,
@@ -26,7 +30,9 @@ export interface IUser{
     role:Role,
     IsActive?:IsActive,
     IsVarified?:boolean,
+    status?: UserStatus;
     auths: IAuthProvider[],
-    wallet?: Types.ObjectId[],
-    transaction?: Types.ObjectId[],
+    wallet?: Types.ObjectId | IWallet,
+    transactions?: Types.ObjectId[],
 }
+

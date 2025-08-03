@@ -11,5 +11,15 @@ const router = Router()
 
 router.post("/register", validateRequest(userValidationSchema), UserControllers.createUser)
 router.get("/",checkAuth(Role.ADMIN), UserControllers.getAllUsers)
+router.get("/me", checkAuth(...Object.values(Role)), UserControllers.getMe)
+router.post("/deposit",checkAuth(Role.USER), UserControllers.deposit)
+router.post("/withdraw",checkAuth(Role.USER), UserControllers.withdraw)
+router.post("/sent",checkAuth(Role.USER), UserControllers.transfer)
+router.get("/transactions", checkAuth("USER",), UserControllers.getTransactionHistory);
+router.post("/agentDeposit", checkAuth("AGENT"), UserControllers.agentDeposit);
+router.post("/agentWithdraw", checkAuth("AGENT",), UserControllers.agentWithdraw);
+router.patch("/approve-agent/:userId", checkAuth(Role.ADMIN), UserControllers.approveAgent);
+router.patch("/suspend-agent/:userId", checkAuth(Role.ADMIN), UserControllers.suspendAgent);
+
 
 export const UserRoutes = router

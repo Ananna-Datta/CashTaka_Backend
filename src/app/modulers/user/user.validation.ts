@@ -1,4 +1,4 @@
-import { z } from "zod";
+import z from "zod";
 
 export const userValidationSchema = z.object({
   name: z
@@ -38,11 +38,11 @@ export const userValidationSchema = z.object({
     .max(200, { message: "Address cannot exceed 200 characters." })
     .optional(),
 
-  role: z
-    .enum(["ADMIN", "USER", "AGENT"]).default("USER"), // match Role enum
+  role: z.enum(["ADMIN", "USER", "AGENT"]).default("USER"),
+  status: z.enum(["approved", "pending", "suspended"]).optional(),
 
-  isActive: z
-    .enum(["active", "inactive"]).default("active"), // match IsActive enum
+  isActive: z.enum(["active", "inactive"]).optional(), // ✅ this field was missing
 
   isVarified: z.boolean().optional(),
+
 });
