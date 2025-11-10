@@ -40,6 +40,10 @@ const transactionHistorySchema = new Schema<ITransaction>(
       type: Schema.Types.ObjectId,
       ref: "User", // Only for 'send' type
     },
+    agent: {
+      type: Schema.Types.ObjectId,
+      ref: "User", 
+    }
   },
   {
     timestamps: true, // adds createdAt and updatedAt

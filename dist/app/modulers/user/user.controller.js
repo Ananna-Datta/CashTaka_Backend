@@ -105,6 +105,24 @@ const getTransactionHistory = (0, catchAsync_1.catchAsync)((req, res) => __await
         data: transactions,
     });
 }));
+const blockUserController = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId } = req.params;
+    const result = yield user_service_1.UserServices.blockUser(userId);
+    res.status(http_status_codes_1.default.OK).json({
+        success: true,
+        message: "User blocked successfully",
+        data: result,
+    });
+}));
+const unblockUserController = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId } = req.params;
+    const result = yield user_service_1.UserServices.unblockUser(userId);
+    res.status(http_status_codes_1.default.OK).json({
+        success: true,
+        message: "User unblocked successfully",
+        data: result,
+    });
+}));
 const approveAgent = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.params;
     const result = yield user_service_1.UserServices.approveAgent(userId);
@@ -124,25 +142,61 @@ const suspendAgent = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     });
 });
 const agentDeposit = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { userId, amount } = req.body;
-    if (!userId || !amount)
-        throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "User ID and amount required");
-    const wallet = yield user_service_1.UserServices.handleDeposit(userId, amount);
+    var _a;
+    const { email, amount } = req.body;
+    const agentId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId; // get logged-in agent
+    const wallet = yield user_service_1.UserServices.handleDeposit(email, amount, agentId); // pass agentId
     res.status(http_status_codes_1.default.OK).json({
         success: true,
-        message: `Added ${amount} to user ${userId}'s wallet successfully.`,
+        message: `Transactions handled by you retrieved successfully`,
         data: wallet,
     });
 }));
 const agentWithdraw = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { userId, amount } = req.body;
-    if (!userId || !amount)
-        throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "User ID and amount required");
-    const wallet = yield user_service_1.UserServices.handlewithdraw(userId, amount);
+    var _a;
+    const { email, amount } = req.body;
+    const agentId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    const wallet = yield user_service_1.UserServices.handlewithdraw(email, amount, agentId);
     res.status(http_status_codes_1.default.OK).json({
         success: true,
-        message: `Withdrew ${amount} from user ${userId}'s wallet successfully.`,
+        message: `Transactions handled by you retrieved successfully`,
         data: wallet,
+    });
+}));
+const getAgentTransactions = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const agentId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    if (!agentId)
+        throw new appError_1.default(http_status_codes_1.default.UNAUTHORIZED, "Agent not authenticated");
+    const transactions = yield user_service_1.UserServices.getAgentTransactions(agentId);
+    res.status(http_status_codes_1.default.OK).json({
+        success: true,
+        message: "Transactions handled by you retrieved successfully",
+        data: transactions,
+    });
+}));
+const updateProfile = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    if (!userId)
+        throw new appError_1.default(http_status_codes_1.default.UNAUTHORIZED, "User not authenticated");
+    const result = yield user_service_1.UserServices.updateProfile(userId, req.body);
+    res.status(http_status_codes_1.default.OK).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: result,
+    });
+}));
+const updatePassword = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    const { currentPassword, newPassword } = req.body;
+    if (!userId)
+        throw new appError_1.default(http_status_codes_1.default.UNAUTHORIZED, "User not authenticated");
+    const result = yield user_service_1.UserServices.updatePassword(userId, currentPassword, newPassword);
+    res.status(http_status_codes_1.default.OK).json({
+        success: true,
+        message: result.message,
     });
 }));
 exports.UserControllers = {
@@ -156,5 +210,10 @@ exports.UserControllers = {
     agentDeposit,
     agentWithdraw,
     approveAgent,
-    suspendAgent
+    suspendAgent,
+    updateProfile,
+    updatePassword,
+    getAgentTransactions,
+    blockUserController,
+    unblockUserController
 };
