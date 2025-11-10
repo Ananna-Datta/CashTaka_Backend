@@ -111,6 +111,28 @@ const getTransactionHistory = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
+const blockUserController = catchAsync(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const result = await UserServices.blockUser(userId);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "User blocked successfully",
+    data: result,
+  });
+});
+
+const unblockUserController = catchAsync(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const result = await UserServices.unblockUser(userId);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "User unblocked successfully",
+    data: result,
+  });
+});
+
 const approveAgent = async (req: Request, res: Response) => {
   const { userId } = req.params;
   const result = await UserServices.approveAgent(userId);
@@ -134,30 +156,72 @@ const suspendAgent = async (req: Request, res: Response) => {
 };
 
 const agentDeposit = catchAsync(async (req: Request, res: Response) => {
-  const { userId, amount } = req.body;
-  if (!userId || !amount) throw new AppError(httpStatus.BAD_REQUEST, "User ID and amount required");
+  const { email, amount } = req.body;
+  const agentId = req.user?.userId; // get logged-in agent
 
-  const wallet = await UserServices.handleDeposit(userId, amount);
+  const wallet = await UserServices.handleDeposit(email, amount, agentId); // pass agentId
 
   res.status(httpStatus.OK).json({
     success: true,
-    message: `Added ${amount} to user ${userId}'s wallet successfully.`,
+    message: `Transactions handled by you retrieved successfully`,
     data: wallet,
   });
 });
 
 const agentWithdraw = catchAsync(async (req: Request, res: Response) => {
-  const { userId, amount } = req.body;
-  if (!userId || !amount) throw new AppError(httpStatus.BAD_REQUEST, "User ID and amount required");
+  const { email, amount } = req.body;
+  const agentId = req.user?.userId;
 
-  const wallet = await UserServices.handlewithdraw(userId, amount);
+  const wallet = await UserServices.handlewithdraw(email, amount, agentId);
 
   res.status(httpStatus.OK).json({
     success: true,
-    message: `Withdrew ${amount} from user ${userId}'s wallet successfully.`,
+    message: `Transactions handled by you retrieved successfully`,
     data: wallet,
   });
 });
+
+
+const getAgentTransactions = catchAsync(async (req: Request, res: Response) => {
+  const agentId = req.user?.userId;
+  if (!agentId) throw new AppError(httpStatus.UNAUTHORIZED, "Agent not authenticated");
+
+  const transactions = await UserServices.getAgentTransactions(agentId);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "Transactions handled by you retrieved successfully",
+    data: transactions,
+  });
+});
+
+
+const updateProfile = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+
+  const result = await UserServices.updateProfile(userId, req.body);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: "Profile updated successfully",
+    data: result,
+  });
+});
+
+const updatePassword = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  const { currentPassword, newPassword } = req.body;
+  if (!userId) throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+
+  const result = await UserServices.updatePassword(userId, currentPassword, newPassword);
+
+  res.status(httpStatus.OK).json({
+    success: true,
+    message: result.message,
+  });
+});
+
 
 
 export const UserControllers = {
@@ -171,5 +235,10 @@ export const UserControllers = {
   agentDeposit,
   agentWithdraw,
   approveAgent,
-  suspendAgent
+  suspendAgent,
+  updateProfile,   
+  updatePassword,
+  getAgentTransactions,
+  blockUserController,
+  unblockUserController
 };

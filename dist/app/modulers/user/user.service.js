@@ -60,6 +60,7 @@ exports.UserServices = void 0;
 const http_status_codes_1 = __importDefault(require("http-status-codes"));
 const env_1 = require("../../config/env");
 const appError_1 = __importDefault(require("../../errorhelper/appError"));
+const user_interface_1 = require("./user.interface");
 const user_model_1 = require("./user.model");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const wallet_model_1 = require("../wallet/wallet.model");
@@ -147,8 +148,20 @@ const transfer = (_a) => __awaiter(void 0, [_a], void 0, function* ({ fromUserId
     const session = yield mongoose_1.default.startSession();
     session.startTransaction();
     try {
+        // ✅ STEP 1: Check if toUserId is an email or ObjectId
+        let receiverUser;
+        if (mongoose_1.default.Types.ObjectId.isValid(toUserId)) {
+            receiverUser = yield user_model_1.User.findById(toUserId);
+        }
+        else {
+            receiverUser = yield user_model_1.User.findOne({ email: toUserId });
+        }
+        if (!receiverUser) {
+            throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "Receiver not found");
+        }
+        // ✅ STEP 2: Find wallets
         const senderWallet = yield wallet_model_1.Wallet.findOne({ user: fromUserId }).session(session);
-        const receiverWallet = yield wallet_model_1.Wallet.findOne({ user: toUserId }).session(session);
+        const receiverWallet = yield wallet_model_1.Wallet.findOne({ user: receiverUser._id }).session(session);
         if (!senderWallet || !receiverWallet) {
             throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "Wallet not found");
         }
@@ -161,15 +174,18 @@ const transfer = (_a) => __awaiter(void 0, [_a], void 0, function* ({ fromUserId
         if (senderWallet.amount < amount) {
             throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "Insufficient balance");
         }
+        // ✅ STEP 3: Update balances
         senderWallet.amount -= amount;
         receiverWallet.amount += amount;
         yield senderWallet.save({ session });
         yield receiverWallet.save({ session });
+        // ✅ STEP 4: Record transaction
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const transaction = yield transaction_model_1.Transactions.create([
             {
                 user: fromUserId,
                 wallet: senderWallet._id,
-                receiver: toUserId,
+                receiver: receiverUser._id,
                 amount,
                 type: "send",
                 method: method || "wallet transfer",
@@ -177,8 +193,6 @@ const transfer = (_a) => __awaiter(void 0, [_a], void 0, function* ({ fromUserId
                 status: "completed",
             },
         ], { session });
-        yield user_model_1.User.findByIdAndUpdate(fromUserId, { $push: { transactions: transaction[0]._id } }, { session });
-        yield user_model_1.User.findByIdAndUpdate(toUserId, { $push: { transactions: transaction[0]._id } }, { session });
         yield session.commitTransaction();
         session.endSession();
         return {
@@ -243,60 +257,114 @@ const suspendAgent = (userId) => __awaiter(void 0, void 0, void 0, function* () 
     yield user.save();
     return user;
 });
-const handleDeposit = (userId, amount) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = yield user_model_1.User.findById(userId);
-    if (!user) {
+const handleDeposit = (email, amount, agentId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_model_1.User.findOne({ email });
+    if (!user)
         throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "User not found");
-    }
     if (user.role === "AGENT" && user.status !== "approved") {
         throw new appError_1.default(http_status_codes_1.default.FORBIDDEN, "Only approved agents can deposit money");
     }
-    //   if (!user.status || user.status !== "approved") {
-    //   throw new AppError(httpStatus.FORBIDDEN, "Only approved users can deposit money");
-    // }
-    const wallet = yield wallet_model_1.Wallet.findOne({ user: userId });
-    if (!wallet) {
+    const wallet = yield wallet_model_1.Wallet.findOne({ user: user._id });
+    if (!wallet)
         throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "Wallet not found");
-    }
-    if (wallet.isBlocked) {
-        throw new appError_1.default(http_status_codes_1.default.FORBIDDEN, "Wallet is currently blocked");
-    }
+    if (wallet.isBlocked)
+        throw new appError_1.default(http_status_codes_1.default.FORBIDDEN, "Wallet is blocked");
     wallet.amount += amount;
     yield wallet.save();
+    console.log("Agent ID:", agentId);
+    yield transaction_model_1.Transactions.create({
+        user: user._id,
+        wallet: wallet._id,
+        amount,
+        type: "deposit",
+        method: "agent deposit",
+        description: "Cash-in by agent",
+        agent: new mongoose_1.Types.ObjectId(agentId),
+    });
     return wallet;
 });
-const handlewithdraw = (userId, amount) => __awaiter(void 0, void 0, void 0, function* () {
-    const user = yield user_model_1.User.findById(userId);
-    if (!user) {
+const handlewithdraw = (email, amount, agentId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_model_1.User.findOne({ email });
+    if (!user)
         throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "User not found");
-    }
-    if (user.role === "AGENT" && user.status !== "approved") {
-        throw new appError_1.default(http_status_codes_1.default.FORBIDDEN, "Only approved agents can deposit money");
-    }
-    const wallet = yield wallet_model_1.Wallet.findOne({ user: userId });
-    if (!wallet) {
+    const wallet = yield wallet_model_1.Wallet.findOne({ user: user._id });
+    if (!wallet)
         throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "Wallet not found");
-    }
-    if (wallet.isBlocked) {
+    if (wallet.isBlocked)
         throw new appError_1.default(http_status_codes_1.default.FORBIDDEN, "Wallet is currently blocked");
-    }
     if (wallet.amount < amount) {
         throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "Insufficient balance");
     }
     wallet.amount -= amount;
     yield wallet.save();
-    const transaction = yield transaction_model_1.Transactions.create({
-        user: userId,
+    console.log("Agent ID:", agentId);
+    yield transaction_model_1.Transactions.create({
+        user: user._id,
         wallet: wallet._id,
         amount,
         type: "withdraw",
         method: "agent withdraw",
         description: "Cash-out by agent",
-    });
-    yield user_model_1.User.findByIdAndUpdate(userId, {
-        $push: { transactions: transaction._id },
+        agent: new mongoose_1.Types.ObjectId(agentId),
     });
     return wallet;
+});
+const getAgentTransactions = (agentId) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!agentId) {
+        throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "Agent ID is required");
+    }
+    const transactions = yield transaction_model_1.Transactions.find({ agent: new mongoose_1.Types.ObjectId(agentId) })
+        .populate("user", "name email")
+        .populate("wallet", "-__v -createdAt -updatedAt")
+        .sort({ createdAt: -1 });
+    return transactions;
+});
+const updateProfile = (userId, payload) => __awaiter(void 0, void 0, void 0, function* () {
+    const { name, phone } = payload;
+    const user = yield user_model_1.User.findById(userId);
+    if (!user) {
+        throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "User not found");
+    }
+    if (name)
+        user.name = name;
+    if (phone)
+        user.phone = phone;
+    yield user.save();
+    return user;
+});
+const updatePassword = (userId, currentPassword, newPassword) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_model_1.User.findById(userId);
+    if (!user) {
+        throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "User not found");
+    }
+    const isMatch = yield bcryptjs_1.default.compare(currentPassword, user.password);
+    if (!isMatch) {
+        throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "Current password is incorrect");
+    }
+    const hashed = yield bcryptjs_1.default.hash(newPassword, Number(env_1.envVars.BCRYPT_SALT_ROUND));
+    user.password = hashed;
+    yield user.save();
+    return { message: "Password updated successfully" };
+});
+const blockUser = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_model_1.User.findById(userId);
+    if (!user)
+        throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "User not found");
+    if (user.role === "AGENT")
+        throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "Cannot block an agent here");
+    user.IsActive = user_interface_1.IsActive.BLOCKED;
+    yield user.save();
+    return user;
+});
+const unblockUser = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_model_1.User.findById(userId);
+    if (!user)
+        throw new appError_1.default(http_status_codes_1.default.NOT_FOUND, "User not found");
+    if (user.role === "AGENT")
+        throw new appError_1.default(http_status_codes_1.default.BAD_REQUEST, "Cannot unblock an agent here");
+    user.IsActive = user_interface_1.IsActive.ACTIVE;
+    yield user.save();
+    return user;
 });
 exports.UserServices = {
     createUser,
@@ -310,4 +378,9 @@ exports.UserServices = {
     handlewithdraw,
     approveAgent,
     suspendAgent,
+    getAgentTransactions,
+    updateProfile,
+    updatePassword,
+    blockUser,
+    unblockUser
 };

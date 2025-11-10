@@ -40,6 +40,10 @@ const transactionHistorySchema = new mongoose_1.Schema({
         type: mongoose_1.Schema.Types.ObjectId,
         ref: "User", // Only for 'send' type
     },
+    agent: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "User",
+    }
 }, {
     timestamps: true, // adds createdAt and updatedAt
     versionKey: false,

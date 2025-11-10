@@ -14,4 +14,5 @@ export interface ITransaction {
   status: TransactionStatus;
   createdAt?: Date;
   updatedAt?: Date;
+  agent: { type: Types.ObjectId, ref: "User" },
 }
